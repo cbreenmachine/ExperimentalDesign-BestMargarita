@@ -1,0 +1,630 @@
+---
+title: "| Statistics 850 \n| A $2^{7-2}_{IV}$ Experiment\n"
+author: "Coleman Breen"
+date: "April 30, 2021"
+output:
+  pdf_document: default
+  html:
+    number_sections: yes
+  html_document:
+    df_print: paged
+---
+
+```{r setup, echo=F, eval=T, message=F, warning=F}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(eval = TRUE)
+
+library(tidyverse) # for data wrangling
+library(kableExtra) # for table outputs
+library(wiscR) # some plotting functions
+library(gridExtra)
+
+```
+
+
+
+```{r add-effect}
+add_effect <- function(X, effect) {
+  # X is a matrix (likely made by `generate_initial_design`)
+  # effect is an effect represented by string of letters (e.g. "AB" or "ADE")
+  # OR effect is a an integer
+  factors <- colnames(X)
+  
+  if (typeof(effect) == "double"){
+    
+    
+    combos <- t(combn(factors, 2))
+    all_effects <- apply(combos, 1, paste0, collapse = "")
+  } else {
+    all_effects <- effect
+  }
+  
+  for (string in all_effects){
+    v <- strsplit(string, split = "")[[1]]
+    X <- cbind(X, apply(X[, v], 1, prod))
+    colnames(X)[ncol(X)] <- string
+  }
+  return(X)
+}
+```
+
+
+```{r get-confounded}
+get_confounded <- function(I){
+  # I is identifying relation (I = "ABCD")
+  # Returns all confounded variables as data.frame
+  
+  I.split <- (strsplit(I, ""))[[1]]
+  
+  # total number of combinations is 2^n. 
+  # Subtract one since don't care about n choose 0
+  # Subtract another 1 since don't need n choose n
+  N <- 2^(length(I.split)) - 2
+  df <- data.frame(lower.confounded = rep("", N),
+                   higher.confounded = rep("", N),
+                   stringsAsFactors = F)
+  
+  ix <- 1
+  for (i in 1:(length(I.split)-1)) {
+    combos <- apply(t(combn(I.split, i)), 1, paste0, collapse = "")
+    for (string in combos) {
+      tmp <- c(string, multiply_effects(c(I, string)))
+      df[ix, ] <-  tmp[order(nchar(tmp), tmp)]
+
+      ix <- ix + 1
+    }
+  }
+  return(distinct(df))
+}
+```
+
+
+```{r get-all-confounded}
+get_all_confounded <- function(multiple_Is){
+  N <- length(multiple_Is)
+  con.df <- get_confounded(multiple_Is[1])
+  
+  for (i in 1:N){
+    combos <- t(combn(multiple_Is, i))
+    for (j in 1:nrow(combos)){
+      vec <- ifelse(i %in% c(1,N), combos[j, ], multiply_effects(combos[j, ]))
+      tmp.df <- get_confounded(vec)
+      
+      con.df <- rbind(con.df, tmp.df)
+    }
+  }
+  return(con.df %>% distinct())
+}
+
+```
+
+
+```{r Lenths-method, echo=F}
+Lenths_method <- function(effects, alpha) {
+  #effects: A vector or (preferably) a named list
+  #alpha: level of test
+  
+  abs_effects <-  abs(effects)
+  g <- length(abs_effects)
+  
+  s0 <- 1.5 * median(abs_effects)
+  PSE <- 1.5 * median(abs_effects[abs_effects < 2.5 * s0])
+  
+  nu <- g / 3
+  gamma <- 0.5 * (1 - (1 - alpha)^(1/g))
+  
+  critical <- qt(p = gamma, df = nu, lower.tail = F) * PSE
+  ix <- abs_effects > critical
+  
+  return(list(sig.effects=effects[ix], critical=critical) )
+}
+
+# Dataset from slide 178 as gutcheck
+# demo <- c(A=23, B=-5, C=1.5, AB=1.5, AC=10, BC=0, ABC=0.5)
+# Lenths_method(demo, 0.1)
+
+```
+
+
+```{r Dongs-method, echo=F}
+Dongs_method <- function(effects, alpha) {
+    g <- length(effects)
+    s <- 1.5 * median(abs(effects))
+    
+    for (i in 1:2){
+      ix <- abs(effects) <= 2.5*s
+      m <- sum(ix)
+      
+      s_sq <- sum(effects[ix]^2) / m
+      s <- sqrt(s_sq)
+    }
+    
+    gamma = 0.5 * (1 - (1 - alpha)^(1/g))
+    critical <- qt(p=gamma, df=m, lower.tail = F) * s
+    sig.ix <- abs(effects) > critical
+    return(list(sig.effects=effects[sig.ix], critical=critical) )
+}
+
+# demo <- c(A=23, B=-5, C=1.5, AB=1.5, AC=10, BC=0, ABC=0.5)
+# Dongs_method(demo, 0.1)
+
+```
+
+```{r find-lambda}
+
+transform_BoxCox <- function(y, lambda) {
+  # y is response vector
+  # lambda is a Box-Cox parameter
+  # Following chunk borrows heavily from Prof. Loh's code
+  gm <- exp(mean(log(y)))
+  if (lambda == 0){
+    y.out <- gm*log(y)
+  } else {
+    y.out <- (y^lambda - 1) / (lambda * gm^(lambda-1))  
+  }
+  return(y.out)
+}
+
+
+get_best_lambda <- function(df, lower, upper){
+  # df must have a capital Y response column
+  # lower and upper are search space for lambda
+  
+  lambda.range <- seq(from=lower,to=upper,length.out=50)
+  df.copy <- df
+  y0 <- pull(df, Y)
+  
+  SSR <- NULL
+  
+  for (lambda in lambda.range){
+    df.copy$Y <- transform_BoxCox(y0, lambda)
+    
+    fit <- lm(Y ~ ., df.copy)
+    SSR <- c(SSR, sum(fit$resid %*% fit$resid))
+  }
+  # Lambda that minimized sum of square residuals
+  lambda.optimal <- round(lambda.range[which(SSR==min(SSR))], 2)
+  # Return a data frame with transformed Y vector
+  df.transformed <- df %>% mutate(Y = transform_BoxCox(Y, lambda.optimal))
+  
+  return(list(lambda.range=lambda.range, SSR=SSR, lambda.optimal=lambda.optimal, 
+              df.transformed=df.transformed))
+}
+
+```
+
+
+```{r generate-initial-design}
+generate_initial_design <- function(p){
+  # Creates an X matrix with p columns. Each column is composed of 1s and -1s.
+  # The patterns of + and - are different in each column. For example:
+  # Col 1: + - + - + -...
+  # Col 2: + + - - + +...
+  # p is the number of factors and is only required (accepted) input.
+  
+  runs <- 2^p
+  X <- matrix(rep(0, runs*p), nrow = runs)
+  colnames(X) <- LETTERS[seq( from = 1, to = p )] # assign column names from alphabet
+  
+  for (jj in 1:p){
+    pattern_multiplier <- 2^(jj - 1)
+    string_multiplier <- 2^(p-jj)
+    
+    ix <- c(rep(1, pattern_multiplier), rep(-1, pattern_multiplier))
+    X[,jj] <- rep(ix, string_multiplier)
+  }  
+  
+  return(X)
+}
+```
+
+```{r multiply-effects}
+multiply_effects <- function(str_vec) {
+  # helper function, multiply letter strings
+  # E.g. multiply_effects("ABC", "CDE") --> "ABDE"
+  N <- length(str_vec)
+  while (N > 2) {
+    str_vec <- c(multiply_effects(str_vec[1:2]), str_vec[3:N])
+    N <- length(str_vec)
+  } 
+  counts <- table(strsplit(paste0(str_vec[1],str_vec[2]), ""))
+  # If the number of occurrences is odd, that letter stays (was not canceled)
+  reduced <- paste0(names(counts[counts %% 2 == 1]), collapse="")
+  return(reduced)
+  
+}
+```
+
+
+# Summary
+
+An unreplicated $2^{7-2}_{IV}$ quarter-fractional experiment was conducted to model the contribution of seven variables on the quality scores of frozen margaritas. Subsequent analysis found three main-effects to be significant under three hypothesis testing methods: assuming higher order interactions are negligible, Lenth's method, and Dong's method. One two-factor interaction was found significant by two of the methods. A Box-Cox transform yielded no significant main effects. The final model is presented. Model diagnostics do not indicate any large departures from linear model assumptions. 
+
+\newpage
+
+# Introduction
+
+## Background
+
+A margarita in its simplest form is a cocktail consisting of at least tequila, triple sec, and lime juice. Its frozen cousin is made by lending all of these ingredients with ice. More complex recipes call for additional fruits--strawberries, pomegranates, or peaches. They can also call for small quantities of raw agave syrup (from which tequila is distilled), orange juice, or freshly-squeezed lime juice. 
+
+## Factors
+
+We consider seven factors that comprise a frozen margarita. Three of these factors--tequila brand, tequila color, and triple sec brand--are "substitution" variables. We use either type A or type B for this variable. The other five variables--frozen strawberries, orange juice, lime juice, and agave--are "additive" variables. These are either included or excluded for a given run. The seven variables are discussed thoroughly below.
+
+***Tequila Brand*** We consider two tequila manufacturers that are representative examples for medium-priced and higher-priced tequilas. We are curious to see if a more expensive tequila will contribute to a higher taste score. The first company Altos is a middle-priced tequila that is commonly used in mixed drinks. In Table 1 we call it "cheap" but that is just in relation to the second brand we consider. The second brand in our experiment is Casmaigos, founded in 2013 by George Clooney and two of his friends. After just four years, the actor [sold the company](https://www.businessinsider.com/george-clooney-tequila-brand-casamigos-started-by-accident-2017-6) for one billion US dollars. This tequila is commonly served on its own and is known for its complex flavors.
+
+***Tequila Color:*** Tequila is distilled from agave, a palm-like shrub that grows in Mexico. Like whiskey, the differentiation of tequila comes from the aging process. There are three types of tequila: blanco (white), reposado (rested), and anejo (vintage). Because blanco is not aged, it has strong flavors that go well in mixed drinks. Reposado is aged in oak barrels for two to 12 months. This aging cuts some of the sharpness and gives the tequila a subtler flavor. Anejo is aged even longer and is generally consumed on its own. For this reason, we only consider blanco and reposado tequilas. This factor is called tequila color because blanco tequila is clear and reposado is light brown.
+
+***Triple Sec:*** Triple sec is a sweet orange-flavored liqueur that is used in margaritas, long island iced teas, and cosmopolitans. The gold-standard triple sec is made by a company called Cointreau. Cointreau is relatively expensive, so we are interested in seeing if Cointreau produces a different taste score than that of a cheaper triple sec (in our experiment we use De Kupyer).
+
+***Frozen Strawberries:*** Frozen strawberries are included in many recipes. Margaritas with strawberries are sweeter and fruitier. We consider two levels: margaritas with and without frozen strawberries.
+
+***Orange Juice:*** Orange juice (without pulp) is a natural compliment to the lime flavoring of margaritas, and the orange flavoring of triple sec. Does the addition of orange juice change the flavor score? The presence or absence of orange juice is another factor.
+
+***Lime Juice:*** In addition to lime concentrate, recipes occasionally call for a small quantity of freshly-squeezed lime juice to bring out the citrus flavors. Our experiment includes drinks with and without added lime juice.
+
+***Agave:*** Agave syrup comes is a sugary substance produced by agave plants. It is used to distill tequila. Many margarita recipes call for agave syrup to add sweetness to the tart base of lime juice or lime concentrate. Some even use it as a sugar substitute in coffee or tea. The final factor is whether or not to add agave to the margarita.
+
+
+The seven factors and their two levels are found in the following table. For ease of notation, the first seven capital letters of the Roman alphabet are used as abbreviations. The first five variables--$A$ through $D$--are the so-called starting variables and are in standard order. $F$ and $G$ are generated using Box, Hunter, and Hunter's generators for a a $2^{7-2}_{IV}$ design, discussed more thoroughly in the following section.
+
+\begin{table}[]
+\centering
+\caption{Factor levels of seven experimental variables.}
+\begin{tabular}{c|c|c|c}
+\hline
+Factor & Level I & Level II & Abbreviation \\
+\hline
+Base Flavor & Lime & Strawberry & A \\
+Orange Juice & None & 1 oz & B \\
+Lime Juice & None & 1.5 oz & C \\
+Agave Nectar & None & 2 tbsp & D \\
+Triple Sec Brand & De Kuyper (Cheap) & Cointreau (Expensive) & E \\
+Tequila Brand & Altos (Cheap) & Casamigos (Expensive) & F \\
+Tequila Color & Blanco & Reposado & G \\
+\hline
+\end{tabular}
+\end{table}
+
+
+# Experimental Design
+
+
+
+## Quarter-fractional Design Matrix
+
+Our budget is 32 runs, which will be collected in four blocks of eight. Blocking is discussed more in the following subsection. With seven variables and 32 runs budgeted, we use a $2^{7-2}_{IV}$ design. The quarter-fractional design is an "aggressive" experiment; we will be able to estimate main effects as well as some second-order interaction effects assuming third-order and higher effects are negligible. We use the generators from [Box, Hunter, and Hunter](#references) $F=ABCD$ and $G=ABDE$. Then our identifying relation is $I = ABCDF = ABDEG = CEFG$. The resolution four alias, $CEFG$, gives us the six confounded two-factor interactions: $CE$ and $FG$; $CF$ and $EG$; $CG$ and $EF$. Now there are ${7 \choose 2} - 6 = 21 - 6 = 15$ estimable two-factor interactions. 
+
+
+## Blocking
+
+Thirty-two runs are spread over four blocks, where each block is run on a different day. This is necessary for two reasons: limitations on space and time as well as taster. The two blocking variables are generated from $CE$ and $CF$ since these are already confounded by the quarter-fractional design. Of course this implicitly confounds $CE*CF = EF$, but this two-factor interaction was also confounded by the fractional design. Therefore, we do not lose any more of the two-factor interactions besides the six already lost. The runs and blocks are summarized in the table below. Crucially, the order of the blocks is randomized as well as the runs within each block (see (appendix)[#appendix] for randomization scheme and summarizing table). 
+
+
+```{r create-design}
+# 2^(7-2) means 5 variables in standard order + 2 "generated" using 
+# Box, Hunter, Hunter
+X <- generate_initial_design(5)
+
+generator1 <- "ABCD" # = F -> I = ABCDF
+generator2 <- "ABDE" # = G -> I = ABDEG
+
+X <- add_effect(X, generator1)
+X <- add_effect(X, generator2)
+
+colnames(X)[6:7] <- c("F", "G")
+
+block1 <- "CE"
+block2 <- "CF"
+
+X <- add_effect(X, block1)
+X <- add_effect(X, block2)
+
+colnames(X)[8:9] <- c("BlockX", "BlockY")
+
+# Change block variables from BlockX BlockY to 4 named blocks
+df.design <- X %>%
+  as.data.frame(row.names = F) %>%
+  mutate(tmp = paste0(BlockX, BlockY)) %>%
+  mutate(Block=recode_factor(tmp, `-1-1`="B1", `-11`="B2", `1-1`="B3", `11`="B4")) %>%
+  select(-c(BlockX, BlockY, tmp)) %>%
+  mutate(Run = 1:32) %>%
+  relocate(Run)
+
+# Print table 
+t1 <- df.design[1:16, ]
+t2 <- df.design[17:32,]
+knitr::kable(list(t1, t2), booktabs = T, valign = 't',row.names = F,
+             caption = '32 Runs in standard order with blocks.') %>%
+  kable_classic() 
+```
+
+
+
+## Protocol
+
+The following protocol is used to create eight runs in one block.
+
+***Equipment***
+
+A standard set of measuring cups is used to measure each ingredient. A Ninja Pro 1100 watt blender is used for all runs. Eight identical high-ball glasses are used to serve drinks.
+
+***Preparation***
+
+All tequila and triple sec is placed in the refrigerator 24 hours before the drinks are made. All high-ball glasses are placed in the freezer one hour prior to the start of the experiment. Because of the time it takes 
+
+***Creating the mixture***
+
+The following ingredients (in order) are added to the blender.
+1. Limeade concentrate (and frozen strawberries if called for in run)
+2. Tequila
+3. Triple sec
+4. Orange juice (if called for)
+5. Lime juice (if called for)
+6. Agave nectar (if called for)
+7. Salt
+8. 12 ice cubes
+
+Blend for two minutes on medium setting. Pour mixture into highball glass and place back in the freezer. Wash out pitcher and dry with towel. Repeat the aforementioned steps for the seven additional runs. 
+
+***Data Collection***
+
+The eight identical glasses are presented in the (random) order in which they were made. Drinks are placed on top of blank note cards along with a glass of water (palette cleanser) and pen to write scores. One taster is used for all blocks. The taster is allowed twenty minutes to sample all eight drinks. The taster is allowed to try drinks as many times as needed. The taster scores each drink from one to ten with one being "bad" and ten being "good". The taster sampling all drinks at once removes bias in scores because it allows the taster to calibrate their scores. For example, if drinks were presented one at a time, the taster may initially think that the first drink is an "eight", but then think the second drink is much better. The taster may realize that the first drink *should* have been scored as a five. Presenting all eight drinks simultaneously remedies this issue. However, scores of the drinks will not be independent. We will discuss this in depth in the model diagnostics section.
+
+# Analysis of Data
+
+## Full Model
+
+We start by fitting a model with a global mean, all seven main effects, three blocking variables (four blocks can be coded as three variables), and 15 two-factor interactions. These 15 two-factor interactions, as discussed previously, are not confounded with any other two-factor interactions. In the usual notation, with $\eta$ being the global mean, $A/2$ is half of the $A$ main effect,..., $\epsilon \sim \mathcal{N}(0, \sigma^2)$ where $\sigma^2$ is unknown. 
+$$\mathbb{E}[Y] = \eta + A + B + D +E+F+G + ... + \epsilon$$
+```{r anova}
+tmp <- read.csv("data.csv", row.names = 1)
+colnames(tmp)[1:7] <- LETTERS[1:7]
+
+df <- merge(x = tmp, y = df.design, by = LETTERS[1:7], all = TRUE, sort = FALSE)
+contrasts(df$Block) <- matrix(c(1,0,0, 0,1,0, 0,0,1, 0,0,0), nrow = 4, byrow = T)
+estimable_effects <- c("AB", "AC", "AD", "AE", "AF", "AG", 
+                       "BC", "BD", "BE", "BF", "BG",
+                       "CD", "DE", "DF", "DG") # 15 estimable 2fi
+
+for (ff in estimable_effects){
+  df <- add_effect(df, ff)
+}
+
+v <- c(LETTERS[1:7], estimable_effects, "Block", "Y")
+df <- df %>%  select(v)
+
+model.full <- lm(Y ~ . , data = df)
+effects <- model.full$coefficients[-1]*2
+
+tmp <- data.frame(Effect = names(effects),
+           Estimate = round(unname(effects),2))
+
+t1 <- tmp[1:7, ]
+t2 <- tmp[8:12,]
+t3 <- tmp[13:17, ]
+t4 <- tmp[18:22, ]
+knitr::kable(list(t1,t2,t3,t4), booktabs = T, valign = 't',row.names = F,
+             caption = 'Estimated main and non-confounded two-factor interactions.') %>%
+  kable_classic() 
+
+```
+
+```{r}
+Lenths_method(effects, 0.10)
+Dongs_method(effects, 0.10)
+```
+
+We cannot estimate $\sigma^2$ because our experiment is unreplicated. This prevents us from using traditional t-tests for the null hypothesis that an effect is zero. Lenth $\theta_1 = A, \theta_2 = B, ..., \theta_{22}=DG$. The null hypotheses are $H_{0}^1:\theta_1 = 0; ...; H^{22}_{0}: \theta_{22} = 0$. The alternative hypotheses are $H_{0}^1:\theta_1 \neq 0; ...; H^{22}_{0}: \theta_{22} \neq 0$. Set the size of the test to $\alpha = 0.1$
+
+***Using Higher-Order Interactions to Estimate $\sigma^2$***
+
+Seven of the 31 total degrees of freedom are allocated to estimate main effects. Another 15 are used to estimate two-factor interactions. Three more are used on estimating block effects. If we assume three-factor and higher interactions are negligible, then we have six degrees of freedom left to "estimate" $\sigma^2$.
+
+```{r}
+
+```
+
+
+
+***Lenth's Method***
+
+Lenth's method defines the following: 
+$$s_0 = 1.5 \times \text{median}|\hat{\theta}_i |$$
+$$PSE = 1.5 \times \text{median} \{|\hat{\theta}_i| : |\hat{\theta}_i| < 2.5s_0 \}$$
+$$\nu = g/3 \text{ and } \gamma = 0.5(1 - (1-\alpha)^{1/g})$$
+
+The critical value for the test that rejects the null at level $\alpha=0.1$ is $t_{\nu, \gamma} \times PSE$. Calculation
+
+***Dong's Method***
+
+Dong's method is a more sensitive (less conservative) improvement ro Lenth's method.
+
+
+***Summary***
+
+
+
+## Restricted Model
+
+Three main effects were found to be significant in 
+
+```{r}
+model.simplified <- lm(Y ~ A + D + G, data = df)
+anova(model.simplified)
+```
+
+## Box-Cox
+
+
+
+
+See slide 182
+
+```{r box-cox}
+# Subset a data frame for box-cox
+df.input <- df %>% select(c(A,D,G, Y))
+
+output <- get_best_lambda(df.input, 0, 1.5)
+
+
+# Data wrangling for plotting
+tmp <- data.frame(lambda = output$lambda.range, SSR = output$SSR)
+p1 <- tmp %>%
+  ggplot(aes(x = lambda, y = SSR)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  xlab(expression(lambda)) +
+  ylab("Sum of squared residuals") +
+  geom_vline(xintercept = output$lambda.optimal, color = "blue") +
+  ggtitle("Finding optimal [lambda]")
+
+
+p1
+```
+
+
+
+```{r Box-Cox-anova}
+
+fit <- lm(Y ~ A+D+G, data = output$df.transformed)
+anova(fit)
+
+Lenths_method(2*fit$coefficients, 0.1)
+Dongs_method(2*fit$coefficients, 0.1)
+```
+No significant effects found after Box-Cox transform.
+
+
+```{r, fig.height=3.3, fig.subcap=c("(A) some plot", "(B) Some other plot", "aaaaaaaaa")}
+
+p2 <- data.frame(fitted = fit$fitted.values, residual=fit$residuals) %>%
+  ggplot(aes(x=fitted, y=residual)) +
+  geom_point() +
+  theme_minimal() +
+  xlab("Fitted response") +
+  ylab("Residual") +
+  ggtitle("Residuals compared \n to fitted values")
+
+p3 <- wiscR::qqplot(fit$residuals) + theme_minimal() +
+  xlab("Theoretical quantile") +
+  ylab("Sample quantile") +
+  ggtitle("QQ Normal \n of residuals \n after Box-Cox transform")
+
+grid.arrange(grobs=list(p1,p2,p3), ncol = 3)
+
+```
+
+
+
+
+
+# Follow-up Study
+
+After the initial analysis, there are eight runs left in the budget.
+In our primary analysis, we found just one significant two-factor interaction. By using a fractional design, we confounded six total two factor interactions, including a few of interest: $FG = `TequilaBrand:TequilaColor`$; $EF = `TripleSecBrand:TequilaBrand`$; and $EG=`TripleSecBrand:TequilaColor`$.
+
+Budget of one eighth additional runs. Could turn our quarter-fractional design into a three-eights experiment as laid our in Wu and Hamada (cite). 
+
+
+```{r follow-up-prep}
+X2 <- generate_initial_design(3) %>% as.data.frame()
+row.names(X2) <- 1:8
+
+set.seed(919)
+ix <- sample(1:8)
+X2 <- X2[ix, ]
+
+write.csv(X2, "design-followup.csv")
+```
+
+
+```{r follow-up}
+df.2 <- read.csv("data-followup.csv", row.names = 1)
+
+mod.2 <- lm(Y ~.^2, data=df.2)
+
+eff.2 <- 2 * mod.2$coefficients
+Lenths_method(eff.2, 0.2)
+```
+
+
+We find just one significant main effect, A, based on Dong's method. In a restricted parameter space, 
+
+
+\newpage
+
+\newpage
+
+# Appendix
+
+Supplemental information, including code, data, and recipes are found in the following sections.
+
+## Recipes
+
+Making a frozen margarita drink at a time is suboptimal--the texture is runnier than what you would get making a full pitcher. Below is the recipe used to make one pitcher (yields eight cups of fluid which is roughly six highball glasses).
+
+\begin{tabular}{ccccc}
+& \multicolumn{2}{c}{Pitcher} & \multicolumn{2}{c}{Drink (1/6 pitcher)} \\
+& Ounces & Cups/shots & Ounces & Cups/shots \\
+Frozen Limeade & 12 oz & 1.5 cups & 2 oz & 1/4 cup \\
+Frozen Strawberries & 12 oz & 1.5 cups & 2 oz & 1/4 cup \\
+Tequila & 9 oz & 6 shots & 1.5 oz & 1 shot \\
+Triple Sec & 4.5 oz & 3 shots & 3/4 oz & 1/2 shot \\
+Ice Cubes & 48 oz & 6 cups & 16 oz & 1 cup \\
+Lime juice & 1.5 oz & 1 shot & 1/4 oz & 1/2 tbsp \\
+Orange Juice & 1 oz & 2 tbsp & 1/6 oz & 1 tspn \\
+Agave Nectar & 1 oz & 2 tbsp & 1/6 oz & 1 tspn \\
+\end{tabular}
+
+
+## Randomization of Blocks and Runs
+
+```{r randomize-runs, echo=T, eval=T}
+set.seed(919)
+block.order <- sample(unique(df.design$Block))
+
+R <- matrix(nrow = 4, ncol = 8)
+for (b in 1:4){
+  R[b,] <- df.design %>%
+    filter(Block == block.order[b]) %>%
+    pull(Run) %>%
+    sample() 
+}
+
+row.names(R) <- block.order
+colnames(R) <- 1:8
+
+R %>%
+  kable(valign = 'c', caption = 'Blocks and runs randomized', booktabs=T) %>%
+  kable_classic()  %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+## Code
+
+### Hypothesis testing
+
+```{r hypothesis-testing, ref.label=c("Lenths-method", "Dongs-method"), echo=T, eval=T}
+
+```
+
+
+
+
+\newpage
+
+## Supplemental
+
+
+Pictures?
+
+\newpage
+
+# References
+
+[1] Box, Hunter, and Hunter.
+[2] Wu and Hamada. Experiments: Planning, Analysis, and Parameter Design Optimization. 2nd Edition.
+[3] Mead, Gilmour, and Mead. Statistical Principles for the Design of Experiments: Applications to Real Experiments.
