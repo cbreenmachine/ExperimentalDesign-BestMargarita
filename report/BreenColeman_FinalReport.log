@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.4.24)  29 APR 2021 21:37
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021) (preloaded format=pdflatex 2021.4.29)  29 APR 2021 23:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -459,7 +459,11 @@ Package: makecell 2009/08/03 V0.1e Managing of Tab Column Heads and Cells
 File: l3backend-pdftex.def 2021-03-18 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count302
 \l__pdf_internal_box=\box68
-) (./BreenColeman_FinalReport.aux)
+) (./BreenColeman_FinalReport.aux
+
+LaTeX Warning: Label `tab:experimental-design' multiply defined.
+
+)
 \openout1 = `BreenColeman_FinalReport.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 121.
@@ -630,103 +634,130 @@ f Graphic file (type pdf)
 <use BreenColeman_FinalReport_files/figure-latex/significant-effects-plot-1.pdf
 >
 Package pdftex.def Info: BreenColeman_FinalReport_files/figure-latex/significan
-t-effects-plot-1.pdf  used on input line 577.
+t-effects-plot-1.pdf  used on input line 576.
 (pdftex.def)             Requested size: 469.75386pt x 252.94438pt.
 [6pdfTeX warning (ext4): destination with the same identifier (name{table.5}) h
 as been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   
-l.590 ...0.9375 x_7  + 0.875 x_1 x_5 + \epsilon \]
-                                                  ]
+l.591 \[
+        \mathbb{E}[Y] = 5.4375 + 1.75 x_1 - x_4  - 0.9375 x_7  + 0.875 x_1 x...
+]
 <BreenColeman_FinalReport_files/figure-latex/model-reduced-1.pdf, id=172, 469.7
 55pt x 252.945pt>
 File: BreenColeman_FinalReport_files/figure-latex/model-reduced-1.pdf Graphic f
 ile (type pdf)
 <use BreenColeman_FinalReport_files/figure-latex/model-reduced-1.pdf>
 Package pdftex.def Info: BreenColeman_FinalReport_files/figure-latex/model-redu
-ced-1.pdf  used on input line 604.
+ced-1.pdf  used on input line 603.
 (pdftex.def)             Requested size: 469.75386pt x 252.94438pt.
-<BreenColeman_FinalReport_files/figure-latex/box-cox-plots-1.pdf, id=173, 469.7
+
+Underfull \hbox (badness 10000) in paragraph at lines 603--607
+[][]
+ []
+
+[7pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) 
+has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  
+l.607 
+       <./BreenColeman_FinalReport_files/figure-latex/significant-effects-plot-
+1.pdf>]
+<BreenColeman_FinalReport_files/figure-latex/box-cox-plots-1.pdf, id=187, 469.7
 55pt x 289.08pt>
 File: BreenColeman_FinalReport_files/figure-latex/box-cox-plots-1.pdf Graphic f
 ile (type pdf)
 <use BreenColeman_FinalReport_files/figure-latex/box-cox-plots-1.pdf>
 Package pdftex.def Info: BreenColeman_FinalReport_files/figure-latex/box-cox-pl
-ots-1.pdf  used on input line 619.
+ots-1.pdf  used on input line 624.
 (pdftex.def)             Requested size: 469.75386pt x 289.07928pt.
-[7pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) 
-has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  
-l.622 ...{Follow-up Study}\label{follow-up-study}}
-                                                   <./BreenColeman_FinalReport_
-files/figure-latex/significant-effects-plot-1.pdf>] [8pdfTeX warning (ext4): de
-stination with the same identifier (name{figure.2}) has been already used, dupl
-icate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  
-l.631 
-       <./BreenColeman_FinalReport_files/figure-latex/model-reduced-1.pdf> <./B
+[8 <./BreenColeman_FinalReport_files/figure-latex/model-reduced-1.pdf>] [9 <./B
 reenColeman_FinalReport_files/figure-latex/box-cox-plots-1.pdf>]
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 6
-39.
+85.
 (/home/coleman/.TinyTeX/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) [9]
-LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 708.
+)
+
+Package hyperref Warning: Difference (2) between bookmark levels is greater 
+(hyperref)                than one, level fixed on input line 724.
+
 [10] [11]
-Underfull \hbox (badness 10000) in paragraph at lines 767--772
+LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10> not available
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 774.
+[12]
+Underfull \vbox (badness 10000) detected at line 884
+ []
+
+
+Underfull \vbox (badness 10000) detected at line 884
+ []
+
+[13] [14] [15pdfTeX warning (ext4): destination with the same identifier (name{
+table.6}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  
+l.1029 \begin{Shaded}
+                     pdfTeX warning (ext4): destination with the same identifie
+r (name{table.7}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  
+l.1029 \begin{Shaded}
+                     ] [16]
+Underfull \hbox (badness 10000) in paragraph at lines 1086--1091
 
  []
 
-[12]
-<../assets/drinks-in-freezer.jpg, id=235, 4047.12pt x 1967.35pt>
+[17]
+<../assets/drinks-in-freezer.jpg, id=258, 4047.12pt x 1967.35pt>
 File: ../assets/drinks-in-freezer.jpg Graphic file (type jpg)
 <use ../assets/drinks-in-freezer.jpg>
-Package pdftex.def Info: ../assets/drinks-in-freezer.jpg  used on input line 77
-8.
+Package pdftex.def Info: ../assets/drinks-in-freezer.jpg  used on input line 10
+97.
 (pdftex.def)             Requested size: 469.70091pt x 228.32683pt.
-<../assets/blender.jpg, id=236, 4047.12pt x 1967.35pt>
+<../assets/blender.jpg, id=259, 4047.12pt x 1967.35pt>
 File: ../assets/blender.jpg Graphic file (type jpg)
 <use ../assets/blender.jpg>
-Package pdftex.def Info: ../assets/blender.jpg  used on input line 779.
+Package pdftex.def Info: ../assets/blender.jpg  used on input line 1098.
 (pdftex.def)             Requested size: 469.70091pt x 228.32683pt.
-<../assets/eight-drinks-presented.jpg, id=237, 4047.12pt x 1967.35pt>
+<../assets/eight-drinks-presented.jpg, id=260, 4047.12pt x 1967.35pt>
 File: ../assets/eight-drinks-presented.jpg Graphic file (type jpg)
 <use ../assets/eight-drinks-presented.jpg>
 Package pdftex.def Info: ../assets/eight-drinks-presented.jpg  used on input li
-ne 780.
+ne 1099.
 (pdftex.def)             Requested size: 469.70091pt x 228.32683pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 778--781
+Underfull \hbox (badness 10000) in paragraph at lines 1097--1100
 []
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 778--781
+Underfull \hbox (badness 10000) in paragraph at lines 1097--1100
 []
  []
 
-[13 <../assets/drinks-in-freezer.jpg> <../assets/blender.jpg>] [14 <../assets/e
+[18 <../assets/drinks-in-freezer.jpg> <../assets/blender.jpg>] [19 <../assets/e
 ight-drinks-presented.jpg>] (./BreenColeman_FinalReport.aux)
+
+LaTeX Warning: There were multiply-defined labels.
+
 Package rerunfilecheck Info: File `BreenColeman_FinalReport.out' has not change
 d.
-(rerunfilecheck)             Checksum: 6BE110B976B7437D1031E053EE73D948;3470.
+(rerunfilecheck)             Checksum: B62179FBC6F59918E12B2B1FC3E829C8;3835.
  ) 
 Here is how much of TeX's memory you used:
- 12094 strings out of 480954
- 175082 string characters out of 5907137
- 513298 words of memory out of 5000000
- 28988 multiletter control sequences out of 15000+600000
+ 12100 strings out of 480954
+ 175198 string characters out of 5907223
+ 514054 words of memory out of 5000000
+ 28990 multiletter control sequences out of 15000+600000
  468316 words of font info for 78 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 71i,9n,74p,363b,363s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 71i,9n,74p,534b,363s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/home/coleman/.TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}{/home/colema
-n/.TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}{/home/coleman/.TinyTeX/
-texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}{/home/coleman/.TinyTeX/texmf-dist/
-fonts/enc/dvips/lm/lm-mathit.enc}{/home/coleman/.TinyTeX/texmf-dist/fonts/enc/d
-vips/lm/lm-rm.enc}</home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx
+n/.TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{/home/coleman/.TinyTeX/texm
+f-dist/fonts/enc/dvips/lm/lm-mathsy.enc}{/home/coleman/.TinyTeX/texmf-dist/font
+s/enc/dvips/lm/lm-mathex.enc}{/home/coleman/.TinyTeX/texmf-dist/fonts/enc/dvips
+/lm/lm-mathit.enc}</home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx
 10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></ho
 me/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbxi10.pfb></home/coleman
 /.TinyTeX/texmf-dist/fonts/type1/public/lm/lmex10.pfb></home/coleman/.TinyTeX/t
@@ -735,18 +766,19 @@ onts/type1/public/lm/lmmi12.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/
 public/lm/lmmi7.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lm
 r10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb></ho
 me/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr17.pfb></home/coleman/.
-TinyTeX/texmf-dist/fonts/type1/public/lm/lmr7.pfb></home/coleman/.TinyTeX/texmf
--dist/fonts/type1/public/lm/lmri10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts
-/type1/public/lm/lmsy10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/publ
-ic/lm/lmsy5.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy7.
-pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmtk10.pfb></home/
-coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmtt10.pfb></home/coleman/.Ti
-nyTeX/texmf-dist/fonts/type1/public/lm/lmtti10.pfb></home/coleman/.TinyTeX/texm
-f-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on BreenColeman_FinalReport.pdf (14 pages, 7624584 bytes).
+TinyTeX/texmf-dist/fonts/type1/public/lm/lmr5.pfb></home/coleman/.TinyTeX/texmf
+-dist/fonts/type1/public/lm/lmr7.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/t
+ype1/public/lm/lmri10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public
+/lm/lmsy10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy5.p
+fb></home/coleman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy7.pfb></home/co
+leman/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmtk10.pfb></home/coleman/.Tiny
+TeX/texmf-dist/fonts/type1/public/lm/lmtt10.pfb></home/coleman/.TinyTeX/texmf-d
+ist/fonts/type1/public/lm/lmtti10.pfb></home/coleman/.TinyTeX/texmf-dist/fonts/
+type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on BreenColeman_FinalReport.pdf (19 pages, 7665504 bytes).
 PDF statistics:
- 336 PDF objects out of 1000 (max. 8388607)
- 289 compressed objects within 3 object streams
- 74 named destinations out of 1000 (max. 500000)
+ 364 PDF objects out of 1000 (max. 8388607)
+ 310 compressed objects within 4 object streams
+ 80 named destinations out of 1000 (max. 500000)
  239 words of extra memory for PDF output out of 10000 (max. 10000000)
 

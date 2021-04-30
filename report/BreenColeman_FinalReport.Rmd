@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(eval = TRUE)
 knitr::opts_chunk$set(fig.height = 3.5)
 
+fs <- 9 # font size for titles in ggplot
 
 library(tidyverse) # for data wrangling
 library(kableExtra) # for table outputs
@@ -446,15 +447,15 @@ df <- df %>%  select(v)
 model.full <- lm(Y ~ . , data = df)
 effects <- model.full$coefficients[-1]*2
 
-tmp <- data.frame(Effect = names(effects),
-           Estimate = round(unname(effects),2))
+tmp <- data.frame(Effect = c(names(effects), "Grand Mean"),
+           Estimate = c(round(unname(effects),2), model.full$coefficients[1]))
 
 t1 <- tmp[1:7, ]
-t2 <- tmp[8:12,]
-t3 <- tmp[13:17, ]
-t4 <- tmp[18:22, ]
-t5 <- tmp[23:25, ]
-knitr::kable(list(t1,t2,t3,t4, t5), booktabs = T, valign = 't',row.names = F,
+t2 <- tmp[8:14,]
+t3 <- tmp[15:21, ]
+t4 <- tmp[22:26, ]
+
+knitr::kable(list(t1,t2,t3,t4), booktabs = T, valign = 't',row.names = F,
              caption = 'Estimated main and non-confounded two-factor interactions.') %>%
   kable_classic() 
 
@@ -504,13 +505,16 @@ p1 <- order.df %>%
   xlab("Run order within block") +
   geom_jitter(width = 0.1, height=0) +
   theme(legend.title = element_blank(),
-        legend.position = c(0.0, 0.1),
-        legend.background = element_rect(fill = "lightgrey", color="white"))
+        legend.text = element_text(size = 10),
+        legend.position = "top",
+        legend.background = element_rect(fill = "white", color="white")) +
+  guides(color=guide_legend(ncol = 4,nrow=1, byrow = F))
+
 ```
 
 
 
-```{r significant-effects-plot, fig.cap="A, D, G, and AE effects are significant by both methods."}
+```{r significant-effects-plot, fig.cap="(Left) Run order does not effect the response. (Right) A, D, G, and AE effects are significant by both methods."}
 effects.df <- data.frame(Effect = names(effects),
                          Estimate = effects)
 
@@ -525,7 +529,8 @@ p2 <- effects.df %>%
   theme_minimal() +
   xlab(TeX("$| \\hat{\\theta} |$")) +
   ylab("") +
-  theme(legend.position = c(0.75, 0.7),
+  guides(fill=guide_legend(ncol=2)) +
+  theme(legend.position = "top",
         legend.background = element_rect(fill = "white", color = "white"),
         legend.title = element_blank())
 
@@ -541,17 +546,17 @@ We now consider a restricted model
 
 $$\mathbb{E}[Y] = \eta + \frac{A}{2} x_1 + \frac{D}{2} x_4  + \frac{G}{2} x_7  + \frac{AE}{2} x_1 x_5 + \epsilon $$
 
-Because the contrasts are orthogonal, we can simply pluck the estimates of the regression coefficients from table 3 and divide by two:
+Because the contrasts are orthogonal, we can simply pluck the estimates of the regression coefficients from table 3 and divide by two to get the estimated regression coefficients. Means are different.
 $$\mathbb{E}[Y] = 5.4375 + 1.75 x_1 - x_4  - 0.9375 x_7  + 0.875 x_1 x_5 + \epsilon $$
 
-### Reduced Model Diagnostics
+### Restircted Model Diagnostics
 
 There are three fundamental assumptions made in our linear regression model. First, 
 
 Slight departure from normality as seen in the QQ normal plot in figure 3.
 
 
-```{r model-reduced, fig.cap="Some caption about residuals"}
+```{r model-reduced, fig.cap="(L) Residuals from reduced model do not depart from normal distribution. (R) There is not strong evidence for residual dependence."}
 model.reduced <- lm(Y ~ A + D + G + A:E, data = df)
 
 p1 <- qqplot(model.reduced$residuals) +
@@ -568,19 +573,24 @@ p2 <- data.frame(fitted = model.reduced$fitted.values, residual= model.reduced$r
 
 grid.arrange(grobs=list(p1,p2), ncol=2)
 ```
+In dollars and cents terms, this indicates that "expensive" triple sec and "expensive" tequila do not have significantly different taste scores compared to their cheaper
 
 
 
 
 
 
+## Box-Cox Transformation
 
-## Box-Cox
+Initial model diagnostics do not suggest large departures from linear model assumptions. We do not have any cause for concern. However, we may be able to improve upon our restricted model by transforming the taste scores. In particular, assume that $\exists \lambda$ such that 
 
-Perhaps there exists a transformation on $Y$ that can accomplish a few things: (i) simplify the model by only including main-effects, (ii) make residuals more normally distributed, and (iii) improve the overall fit and interpretability of the model. We will experiment with a Box-Cox transform on the response, $Y$.
+$$\begin{array}{l}
+      0\\
+      1
+\end{array}$$
 
-See slide 182
 
+Iterating over a range of potential $\lambda$ values, we find the maximum likelihood estimate for $\lambda \approx 0.75$. 
 ```{r box-cox}
 # Subset a data frame for box-cox
 df.input <- df %>% select(c(A,B, C, D,E,F,G,Block, Y))
@@ -600,7 +610,10 @@ p1 <- tmp %>%
   geom_vline(xintercept = output$lambda.optimal, color = "blue") +
   ggtitle(TeX("Finding best $\\lambda$"))
 
-model.BC <- lm(Y ~ ., data = output$df.transformed)
+
+df.bc <- df.input %>%
+  mutate(Y = transform_BoxCox(.$Y, 0.75))
+model.BC <- lm(Y ~ ., data = df.bc)
 # anova(model.BC)
 
 # [-1] drops the intercept
@@ -623,7 +636,8 @@ p2 <- data.frame(fitted = model.BC$fitted.values, residual=model.BC$residuals) %
 p3 <- wiscR::qqplot(model.BC$residuals) + theme_minimal() +
   xlab("Theoretical quantile") +
   ylab("Sample quantile") +
-  ggtitle("QQ Normal of residuals \n after Box-Cox")
+  ggtitle("QQ Normal of residuals after Box-Cox") +
+  theme(plot.title = element_text(size = fs))
 
 effects.BC.df <- data.frame(Effect = names(effects.BC),
                             Estimate = effects.BC)
@@ -633,12 +647,13 @@ effects.BC.df$Effect <- factor(effects.BC.df$Effect, levels = effects.BC.df$Effe
 p4 <- effects.BC.df %>%
   ggplot(aes(y = Effect, x = abs(Estimate))) +
   geom_col() +
-  geom_vline(aes(xintercept = lenth.BC$critical,  color = "Lenth's Critical")) +
-  geom_vline(aes(xintercept = dong.BC$critical,  color = "Dong's Critical")) +
+  geom_vline(aes(xintercept = lenth.BC$critical,  color = "Lenth's Threshold")) +
+  geom_vline(aes(xintercept = dong.BC$critical,  color = "Dong's Threshold")) +
   theme_minimal() +
   xlab(TeX("$| \\hat{\\theta} |$")) +
   ylab("") +
   theme(legend.position = c(0.8, 0.75),
+        legend.text = element_text(size = 9),
         legend.background = element_rect(fill = "white", color = "white"),
         legend.title = element_blank()) +
   ggtitle("Significant effects \n after Box-Cox")
@@ -647,23 +662,40 @@ grid.arrange(grobs=list(p1,p2,p3, p4), ncol = 2)
 
 ```
 
+Residuals are not notably more normal. We did not identify any new main effects. Conversely we did not rule any significant effects from the restricted model to be insignificant after performing the Box-Cox transformation. Finally, the $Y^{\frac{3}{4}}$ transformation is less interpretable than the raw response. For these reasons, the restricted model with three main effects and one two-factor interaction is better.
+
+# Final Model
 
 
+# Follow-up Study: Unreplicated 2^3 Experiment to Examine Two-Factor interactions.
+
+After conducting 32 runs and analyzing the data we have enough tequila to make two more drinks for each color-brand combination: two Casamigos Blanco, two Altos Blanco, two Casamigos Reposado, and two Altos Reposado. There is enough of each triple sec to make at least four drinks. The other ingredients are relatively cheap and can be replenished. In short, our limiting factor is tequila. 
+
+***Why not replicate?***
+
+There are two reasons why I do not want to replicate the experiment. Most obviously, it would require doubling the financial and (experimental) costs. Second, replication does not get us anything I need or want. Replication would only allow us to get an estimate of $\sigma^2$. It would allow us to build more robust simultaneous confidence intervals (e.g. Bonferroni or Shceffe). This is not needed. I feel confident in the classification of three main effects and one two-factor interaction being significant. There were effects that were "on the fence." That is to say, no variables were *almost* significant. Because of this, I am not too concerned with estimating $\sigma^2$ and getting more robust confidence intervals.
+
+***Why not the other half-fraction?***
+
+An additional 32 runs, as in the last paragraph, would require doubling the budget. Additionally, it would not get us much additional information for the time and money.
+
+***Why not adding a one-eight fraction?***
+
+Mead and Gilmour discuss a "partial" folding over in ... This would get us ???
 
 
-# Follow-up Study
+***An Unreplicated $2^3$ Follow-up to estimate two-factor interactions***
 
-After the initial analysis, there are eight runs left in the budget.
-In our primary analysis, we found just one significant two-factor interaction. By using a fractional design, we confounded six total two factor interactions, including a few of interest: $FG = `TequilaBrand:TequilaColor`$; $EF = `TripleSecBrand:TequilaBrand`$; and $EG=`TripleSecBrand:TequilaColor`$.
-
-Budget of one eighth additional runs. Could turn our quarter-fractional design into a three-eights experiment as laid our in Wu and Hamada (cite). 
+ By using a fractional design, we confounded six total two factor interactions, including a few of interest: $FG = `TequilaBrand:TequilaColor`$; $EF = `TripleSecBrand:TequilaBrand`$; and $EG=`TripleSecBrand:TequilaColor`$.
 
 
-View this as a pilot to a larger follow-up experiment. Data cannot be incorporated into main data set. Why?
+Before conducting the experiment, I assume the three factor interaction $EFG$ is negligible.
+
 
 ```{r follow-up-prep}
 X2 <- generate_initial_design(3) %>% as.data.frame()
 row.names(X2) <- 1:8
+colnames(X2) <- c("E", "F", "G")
 
 set.seed(919)
 ix <- sample(1:8)
@@ -676,15 +708,35 @@ write.csv(X2, "../design-matrices/design-followup.csv")
 ```{r follow-up}
 df.2 <- read.csv("../data/data-followup.csv", row.names = 1)
 
-mod.2 <- lm(Y ~.^2, data=df.2)
+mod.2 <- lm(Y ~.^3, data=df.2)
 
 eff.2 <- 2 * mod.2$coefficients[-1]
-Lenths_method(eff.2, 0.2)
+Lenths_method(eff.2, 0.1)
+Dongs_method(eff.2, 0.1)
 ```
 
+The model is 
+$$\mathbb{E}[Y^*] = \eta^* + \frac{E}{2} + \frac{F}{2} + \frac{G}{2} + \frac{EF}{2} + \frac{EG}{2} + \frac{FG}{2} + \frac{EFG}{2} + \epsilon.$$
+We assume the three-factor interaction is zero in order to estimate $\sigma^2$. Of course, this estimate will be poor because it is calculated using only one degree of freedom.
 
-We find just one significant main effect, A, based on Dong's method. In a restricted parameter space, 
 
+The $EFG$ estimate is $1.5.$ Then $SD(\text{effect}) = \sqrt{\text{Var(effect)}} = \sqrt{(EFG)^2} = 0.75$.
+
+```{r}
+bon.p <- 0.1 / 6
+t <- qt(bon.p, df = 1, lower.tail = F)
+sd <- (mod.2$coefficients[8]*2) %>% unname()
+
+half.interval <- t*sd
+```
+
+We continue to use $\alpha=0.1$. Then a Bonferroni-adjusted p-value is $0.1 / 6$ and the critical $t$-statistic is found using `qt()`. $t_{1, 0.1/6} \approx 19$. Then the confidence intervals take the form $\text{Estimate} +/- 19*1.5$. Clearly an interval this wide does not return any significant effects. Of course, because this method is inferior in many respects, we also try Lenth's and Dong's methods. These too find no significant effects. 
+
+There is not strong statistical evidence that the $EF$, $FG$, or $EG$ two-factor interactions are significant in this follow-up study. 
+
+Why I am not concerned that the $G$ effect is not significant here.
+
+### Critical Values 
 
 # Limitations
 
@@ -711,28 +763,25 @@ Three models were considered: an unrestricted model with seven main effects and 
 
 Supplemental information, including code, data, and recipes are found in the following sections.
 
-## Recipes
-
-
-
-
-## Randomization of Blocks and Runs
-
-
-
 ## Code
 
 ### Helper functions
 
-### Hypothesis testing
+```{r helper-functions, ref.label=c("setup", "add-effect", "get-confounded", "get-all-confounded", "generate-initial-design", "multiply-effects"),echo=T, eval=T}
+
+```
+
+### Experimental design
+
+```{r experimental-design, ref.label=c("create-design", "randomize-runs"), echo=T, eval=T}
+
+```
+
+### Analysis and plotting of "main" dataset
 
 ```{r hypothesis-testing, ref.label=c("Lenths-method", "Dongs-method"), echo=T, eval=T}
 
 ```
-
-
-### Analysis and plotting of "main" dataset
-
 
 ### Analysis and plotting of "follow-up" dataset
 
@@ -744,8 +793,6 @@ Supplemental information, including code, data, and recipes are found in the fol
 [1] Box, Hunter, and Hunter. \
 [2] Wu and Hamada. Experiments: Planning, Analysis, and Parameter Design Optimization. 2nd Edition. \
 [3] Mead, Gilmour, and Mead. Statistical Principles for the Design of Experiments: Applications to Real Experiments. \
-
-
 
 \newpage
 
